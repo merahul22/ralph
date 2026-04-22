@@ -8,14 +8,15 @@ is_rate_limit_output() {
 
   [[ "$output_lower" == *"usage limit reached"* ]] \
     || [[ "$output_lower" == *"rate limit"* ]] \
-    || [[ "$output_lower" == *"quota exceeded"* ]]
+    || [[ "$output_lower" == *"quota exceeded"* ]] \
+    || [[ "$output_lower" == *"hit your"* ]]
 }
 
 extract_rate_limit_reset_details() {
   local output="$1"
   local reset_time=""
   local reset_timezone=""
-  local reset_regex='[Yy]our[[:space:]]limit[[:space:]]will[[:space:]]reset[[:space:]]at[[:space:]]([^()]*)[[:space:]]\(([^)]+)\)'
+  local reset_regex='[Rr]eset[[:space:]]at[[:space:]]([^()[:space:]][^()]*)[[:space:]]\(([^)]+)\)'
 
   if [[ "$output" =~ $reset_regex ]]; then
     reset_time="${BASH_REMATCH[1]}"
