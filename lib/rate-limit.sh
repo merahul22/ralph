@@ -16,11 +16,11 @@ extract_rate_limit_reset_details() {
   local output="$1"
   local reset_time=""
   local reset_timezone=""
-  local reset_regex='[Rr]eset[[:space:]]at[[:space:]]([^()[:space:]][^()]*)[[:space:]]\(([^)]+)\)'
+  local reset_regex='[Rr]esets?([[:space:]]+at)?[[:space:]]+([^()[:space:]][^()]*)[[:space:]]\(([^)]+)\)'
 
   if [[ "$output" =~ $reset_regex ]]; then
-    reset_time="${BASH_REMATCH[1]}"
-    reset_timezone="${BASH_REMATCH[2]}"
+    reset_time="${BASH_REMATCH[2]}"
+    reset_timezone="${BASH_REMATCH[3]}"
   fi
 
   if [[ -n "$reset_time" && -n "$reset_timezone" ]]; then

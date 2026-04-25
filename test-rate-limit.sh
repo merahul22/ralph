@@ -211,9 +211,57 @@ EOF
   pass "New-format 'hit your limit' message: detected and reset time parsed correctly (no 5h fallback)"
 }
 
+run_claude_resets_format_test() {
+  local fixture_dir="$TMP_DIR/claude-resets-format"
+  local output=""
+
+  setup_fixture "$fixture_dir"
+
+  # Simulates the Claude rate-limit message format with "resets":
+  # "You've hit your usage limit. resets 12:30am (America/Sao_Paulo)."
+  cat > "$fixture_dir/bin/claude" <<EOF
+#!/bin/bash
+state_file="$fixture_dir/claude-state"
+count=0
+if [ -f "\$state_file" ]; then
+  count=\$(cat "\$state_file")
+fi
+count=\$((count + 1))
+printf '%s' "\$count" > "\$state_file"
+if [ "\$count" -eq 1 ]; then
+  echo "You've hit your usage limit. resets 12:30am (America/Sao_Paulo)."
+else
+  echo "<promise>COMPLETE</promise>"
+fi
+EOF
+
+  cat > "$fixture_dir/bin/sleep" <<EOF
+#!/bin/bash
+echo "sleep:\$1" >> "$fixture_dir/sleep.log"
+EOF
+
+  chmod +x "$fixture_dir/bin/claude" "$fixture_dir/bin/sleep"
+
+  output=$(PATH="$fixture_dir/bin:$PATH" bash "$fixture_dir/ralph.sh" --tool claude 1 2>&1)
+
+  assert_contains "$output" "Claude hit a rate limit." "Expected Claude rate-limit detection message for 'resets' format"
+  assert_contains "$output" "Detected reset time: 12:30am (America/Sao_Paulo)." "Expected reset-time parsing to succeed for 'resets' format"
+  assert_contains "$output" "Ralph completed all tasks!" "Expected Ralph to complete after retry on 'resets' format"
+  assert_file_contains "$fixture_dir/claude-state" "2" "Expected Claude to be invoked twice for the same iteration"
+
+  local first_sleep
+  first_sleep=$(head -n 1 "$fixture_dir/sleep.log")
+  if [[ "$first_sleep" == "sleep:2" ]]; then
+    fail "Expected the first sleep to be the computed quota wait, not the normal 2-second pause"
+  fi
+
+  pass "New-format 'resets' message: detected and reset time parsed correctly (no 5h fallback)"
+}
+
 run_claude_parseable_test
 run_claude_fallback_test
 run_claude_new_format_test
+run_claude_resets_format_test
 run_amp_smoke_test
 
 echo "All Ralph smoke tests passed."
